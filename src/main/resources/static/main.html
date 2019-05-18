@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>主页</title>
+    <link type="text/css" rel="stylesheet" href="assest/layui/css/layui.css">
+</head>
+<body  style="background-color: #eeeeee">
+<div class="layui-container">
+    <br> <br> <br> <br> <br> <br>
+    <div class="layui-card" style="width: 400px;margin: auto">
+                <div class="layui-card-header">人脸录入状态</div>
+                <div class="layui-card-body" style="text-align: center">
+                   <h3>同一用户最多可添加20个人脸数据</h3>
+                    <div class="layui-input-inline">
+                        <div id="info"></div>
+                    </div>
+                    <div class="layui-input-inline">
+                        <button id="face_reg" type="button"  class="layui-btn layui-btn-sm layui-btn-primary"><i class="layui-icon">&#xe608;</i>添加人脸</button>
+                    </div>
+                </div>
+            </div>
+   <div id="vi" style="display:none">
+       <video  autoplay="autoplay"></video>
+   </div>
+</div>
+</body>
+<script src="assest/layui/layui.js"></script>
+<script>
+    layui.use(['layer','element'], function () {
+        var layer = layui.layer,
+            element = layui.element,
+            $ = layui.jquery;
+
+       /**
+        * 检测人脸状态
+        * */
+        function checkStatus(){
+            $.post("/face_status",function(res){
+                if(res.status == 0){
+                    $('#info').html('  <span class="layui-badge layui-bg-cyan">当前已添加:'+res.data+'张</span>');
+                }
+            });
+        }
+
+        checkStatus();
+
+        var video = document.querySelector('video');
+        var mediaStreamTrack;
+
+        /**
+         * 获取视频流
+         *
+         * */
+        function getMedia() {
+            navigator.getMedia = navigator.getUserMedia ||
+                navigator.webkitGetUserMedia ||
+                navigator.mozGetUserMedia ||
+                navigator.msGetUserMedia||
+                navigator.msGetUserMedia;
+            navigator.getMedia({
+                video: true,   //使用摄像头
+                audio: false  //不使用音频
+            }, function(stream){
+                mediaStreamTrack = mediaStreamTrack = typeof stream.stop === 'function' ? stream : stream.getTracks()[0];
+                //兼容webkit内核浏览器
+                window.URL = window.URL || window.webkitURL;
+                //将视频流设置为video元素的源
+                video.srcObject = stream || window.URL.createObjectURL(stream);
+                video.play();
+            }, function(error) {
+                alert(error);
+            });
+        }
+
+        /**
+         * 截图-base64编码
+         */
+        function screenshot() {
+            var canvas = document.createElement('canvas');
+            canvas.width=400;
+            canvas.height=300;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(video,0,0, canvas.width,canvas.height);
+            var imgData = canvas.toDataURL("image/png").substr(22);
+            $.post("/addFace",{BASE64:imgData},function(res){
+                if (res.status == 0) {
+                    layer.msg("人脸数据添加成功",{icon: 1,time:800},function(){
+                        checkStatus();
+                        $('#vi').hide();
+                        mediaStreamTrack.stop();
+                        layer.closeAll();
+                    });
+                }else{
+                    layer.msg('上传失败!请重试!');
+                }
+            });
+        }
+        $('#face_reg').click(function(){
+            layer.open({
+                type : 1,
+                title :'添加人脸',
+                area : [ '640px', '528px'],
+                resize:false,
+                offset: 't',
+                closeBtn: 0,
+                content :$('#vi'),
+                btn:['上传人脸图片','取消'],
+                success: function(){
+                    getMedia();
+                    $('#vi').show();
+                },
+                end: function(){
+                    $('#vi').hide();
+                },
+                btn1 :function(index, layero) {
+                    layer.msg('数据正在上传,请稍等……',{
+                        time:0,
+                        icon: 16,
+                        shade: 0.01
+                    });
+                    screenshot();
+                },
+                btn2 :function(index, layero) {
+                    mediaStreamTrack.stop();
+                    layer.close(index);
+                }
+            });
+        });
+    });
+</script>
+</html>

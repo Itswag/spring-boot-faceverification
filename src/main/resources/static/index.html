@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <link type="text/css" rel="stylesheet" href="assest/layui/css/layui.css">
+</head>
+<body class="layui-bg-gray layui-container">
+    <div class="layui-tab layui-tab-brief" lay-filter="lrTabs" style="width: 500px;margin: auto">
+        <ul class="layui-tab-title">
+            <li class="layui-this" lay-id="login" style="width: 200px">登录</li>
+            <li lay-id="reg" style="width: 200px">注册</li>
+        </ul>
+        <div class="layui-tab-content">
+            <!--登录-->
+            <div class="layui-tab-item layui-show" >
+                <form class="layui-form">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">
+                            <i class="layui-icon layui-icon-username"></i>
+                        </label>
+                        <div class="layui-input-inline">
+                            <input class="layui-input" required type="text" name="username" placeholder="请输入账号"
+                                   lay-verify="username" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">
+                            <i class="layui-icon layui-icon-password"></i>
+                        </label>
+                        <div class="layui-input-inline">
+                            <input class="layui-input" required type="password" name="password" placeholder="请输入密码"
+                                   lay-verify="required" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">
+                        </label>
+                        <div class="layui-input-inline">
+                            <button id="login" class="layui-btn layui-bg-black " lay-submit lay-filter="login">登录</button>
+                            <button id="face" type="button" class="layui-btn layui-bg-black">人脸登录</button>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+            <!--注册-->
+            <div class="layui-tab-item" >
+                <br>
+                <form class="layui-form" id="reg_form">
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">用户名</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="username" required  lay-verify="required" placeholder="请输入用户名" autocomplete="off" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">密码</label>
+                        <div class="layui-input-inline">
+                            <input type="password"  id="regPassword" name="password" required lay-verify="required" placeholder="请输入密码" autocomplete="off" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label">确认密码</label>
+                        <div class="layui-input-inline">
+                            <input type="password"  name="passwords" required lay-verify="passwords" placeholder="请再次输入密码" autocomplete="off" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-form-item">
+                        <label class="layui-form-label"></label>
+                        <div class="layui-input-inline">
+                            <button class="layui-btn layui-bg-black layui-btn-fluid" lay-submit lay-filter="register">注册</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div id="vi" style="display:none">
+        <video  autoplay="autoplay"></video>
+    </div>
+<script src="assest/layui/layui.js"></script>
+<script>
+    layui.use(['layer', 'form', 'element'], function () {
+        var layer = layui.layer,
+            form = layui.form,
+            element = layui.element,
+            $ = layui.jquery;
+
+        form.verify({
+            passwords: function (value) {
+                if (!new RegExp($("#regPassword").val()).test(value)) {
+                    return '两次输入密码不一致,请重新输入!';
+                }
+            }
+
+        });
+
+        var flag;
+        var video = document.querySelector('video');
+        var mediaStreamTrack;
+
+        /**
+         * 截图
+         * */
+        function screenshot() {
+            var canvas = document.createElement('canvas');
+            canvas.width=400;
+            canvas.height=300;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(video,0,0, canvas.width,canvas.height);
+            var imgData = canvas.toDataURL("image/png").substr(22);
+            $.post("/face_login", {BASE64:imgData},function(res){
+                if (res.status == 0) {
+                    window.clearInterval(flag);
+                    layer.msg("人脸验证通过",{icon: 1,time:800},function(){
+                        $('#vi').hide();
+                        mediaStreamTrack.stop();
+                        window.location.href = "main.html";
+                    });
+                }
+            });
+        }
+
+        /**
+         *获取视频流
+         */
+        function getMedia() {
+            navigator.getMedia = navigator.getUserMedia ||
+                navigator.webkitGetUserMedia ||
+                navigator.mozGetUserMedia ||
+                navigator.msGetUserMedia||
+                navigator.msGetUserMedia;
+
+            navigator.getMedia({
+                video: true,   //使用摄像头
+                audio: false  //不使用音频
+            }, function(stream){
+                mediaStreamTrack = mediaStreamTrack = typeof stream.stop === 'function' ? stream : stream.getTracks()[0];
+                //兼容webkit内核浏览器
+                window.URL = window.URL || window.webkitURL;
+                //将视频流设置为video元素的源
+                video.srcObject = stream || window.URL.createObjectURL(stream);
+                video.play();
+            }, function(error) {
+                alert(error);
+            });
+        }
+
+
+        $('#face').click(function(){
+            layer.open({
+                type : 1,
+                title :'人脸登录',
+                area : [ '640px', '528px'],
+                resize:false,
+                offset: 't',
+                content :$('#vi'),
+                success: function(){
+                    getMedia();
+                    $('#vi').show();
+                    flag=window.setInterval(screenshot,1500);
+                },end:function(){
+                    $('#vi').hide();
+                    mediaStreamTrack.stop();
+                    window.clearInterval(flag);
+                },cancel: function(){
+                    $('#vi').hide();
+                    mediaStreamTrack.stop();
+                    window.clearInterval(flag);
+                }
+            });
+
+        });
+
+
+        /**
+         * 登录
+         */
+        form.on('submit(login)', function(data){
+               layer.msg('登录中……',{icon: 16,time:0,shade:0.01});
+               $.post("/login",data.field,function(res){
+                   if(res.status != 0){
+                       layer.closeAll();
+                       layer.msg(res.msg);
+                   }else{
+                       layer.closeAll();
+                       layer.msg("登录成功",{icon: 1,time:800},function(){
+                               window.location.href = "main.html";
+                       });
+                   }
+               });
+            return false;
+        });
+
+        /**
+         * 注册
+         */
+        form.on('submit(register)', function(data){
+                    layer.msg("注册中……",{icon: 16,time:0,shade:0.01});
+                    $.post("/register",data.field,function(res){
+                        if(res.status != 0){
+                            layer.closeAll();
+                            layer.msg(res.msg);
+                        }else{
+                            layer.closeAll();
+                            layer.msg("注册成功,请登录",{icon: 1,time:800},function(){
+                                element.tabChange('lrTabs', 'login');
+                                document.getElementById("reg_form").reset();
+                            });
+                        }
+                    });
+            return false;
+        });
+
+    });
+</script>
+</body>
+</html>
