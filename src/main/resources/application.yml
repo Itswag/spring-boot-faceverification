@@ -8,6 +8,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/face
     username: root
     password: root
+    tomcat:
+      validation-query: select 1
+      test-while-idle: true
+      time-between-eviction-runs-millis: 60000
   jpa:
     show-sql: true
     hibernate:
